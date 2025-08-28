@@ -20,13 +20,18 @@ jobs:
           pip install pyinstaller
 
       - name: Build EXE (one-folder)
-        working-directory: .
         run: |
           pyinstaller --noconfirm --name mini-downsub --add-data "templates;templates" main.py
 
+      - name: List build output (debug)
+        run: |
+          dir
+          dir dist
+          dir dist\mini-downsub
+
       - name: Zip portable folder
         run: |
-          powershell -Command "Compress-Archive -Path mini-downsub-replit\\dist\\mini-downsub\\* -DestinationPath mini-downsub-windows.zip"
+          powershell -Command "Compress-Archive -Path 'dist\\mini-downsub\\*' -DestinationPath 'mini-downsub-windows.zip'"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
