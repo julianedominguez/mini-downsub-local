@@ -1,0 +1,50 @@
+name: Build executables
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+        python-version: ["3.11"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      # El separador de --add-data cambia según el SO
+      - name: Set data-sep
+        id: sep
+        run: echo "SEP=$([ \"$RUNNER_OS\" = \"Windows\" ] && echo ';' || echo ':')" >> $GITHUB_OUTPUT
+        shell: bash
+
+      - name: Build executable
+        run: |
+          pyinstaller --onefile ^
+            --name mini-downsub ^
+            --add-data "templates${{ steps.sep.outputs.SEP }}templates" ^
+            main.py
+        shell: pwsh
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mini-downsub-${{ runner.os }}
+          path: dist/**
