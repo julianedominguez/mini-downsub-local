@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Transcriptor YouTube</title>
+  <style>
+    :root { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial; }
+    body { margin: 0; background: #0b0f14; color: #e9edf1; }
+    .wrap { max-width: 900px; margin: 40px auto; padding: 24px; }
+    .card { background: #0f1621; border: 1px solid #1c2736; border-radius: 16px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,.35); }
+    h1 { margin: 0 0 8px; font-size: 28px; }
+    p.muted { color: #9fb1c3; margin-top: 0; }
+    .row { display: grid; grid-template-columns: 1fr auto; gap: 10px; }
+    input[type=url] { width: 100%; padding: 14px 16px; border-radius: 12px; border: 1px solid #314158; background: #0c131d; color: #e9edf1; }
+    button { padding: 12px 16px; border-radius: 12px; border: 1px solid #3a86ff33; background: #1a2533; color: #e9edf1; cursor: pointer; }
+    button:hover { filter: brightness(1.1); }
+    .bar { display:flex; gap:10px; margin: 14px 0; }
+    textarea { width: 100%; height: 380px; padding: 14px; border-radius: 12px; border: 1px solid #314158; background: #0c131d; color: #e9edf1; resize: vertical; }
+    .hint { color: #9fb1c3; font-size: 12px; }
+    .err { color: #ff8e8e; margin-top: 6px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Transcriptor de YouTube</h1>
+      <p class="muted">Pegá un link de YouTube y obtené la transcripción limpia en segundos.</p>
+      <div class="row">
+        <input id="url" type="url" placeholder="https://www.youtube.com/watch?v=..." />
+        <button id="go">Obtener</button>
+      </div>
+      <div class="bar">
+        <button id="copy" disabled>Copiar todo</button>
+        <button id="download" disabled>Descargar .txt</button>
+        <select id="langs">
+          <option value="">Auto (es → en)</option>
+          <option value="es">Español</option>
+          <option value="en">Inglés</option>
+        </select>
+        <span class="hint">Si el video no tiene subtítulos, no se puede transcribir sin STT.</span>
+      </div>
+      <textarea id="out" placeholder="La transcripción aparecerá acá…" readonly></textarea>
+      <div id="err" class="err"></div>
+    </div>
+  </div>
+
+  <script>
+    const $ = (s) => document.querySelector(s);
+    const urlI = $('#url');
+    const out = $('#out');
+    const err = $('#err');
+    const btnGo = $('#go');
+    const btnCopy = $('#copy');
+    const btnDl = $('#download');
+    const selLangs = $('#langs');
+
+    async function fetchTranscript() {
+      err.textContent = '';
+      out.value = '';
+      btnCopy.disabled = true;
+      btnDl.disabled = true;
+      const url = urlI.value.trim();
+      if (!url) { err.textContent = 'Pegá un link primero'; return; }
+      const langs = selLangs.value || '';
+      const q = new URLSearchParams({ url, ...(langs ? { langs } : {}) }).toString();
+      btnGo.disabled = true; btnGo.textContent = 'Buscando…';
+      try {
+        const r = await fetch(`/api/transcript?${q}`);
+        const j = await r.json();
+        if (!j.ok) throw new Error(j.error || 'Error');
+        out.value = j.text || '';
+        btnCopy.disabled = !out.value;
+        btnDl.disabled = !out.value;
+      } catch (e) {
+        err.textContent = e.message || 'Fallo inesperado';
+      } finally {
+        btnGo.disabled = false; btnGo.textContent = 'Obtener';
+      }
+    }
+
+    btnGo.addEventListener('click', fetchTranscript);
+    urlI.addEventListener('keydown', (e) => { if (e.key === 'Enter') fetchTranscript(); });
+
+    btnCopy.addEventListener('click', async () => {
+      await navigator.clipboard.writeText(out.value);
+      btnCopy.textContent = '¡Copiado!';
+      setTimeout(() => btnCopy.textContent = 'Copiar todo', 1200);
+    });
+
+    btnDl.addEventListener('click', () => {
+      const url = urlI.value.trim();
+      const langs = selLangs.value || '';
+      const q = new URLSearchParams({ url, ...(langs ? { langs } : {}) }).toString();
+      window.location.href = `/api/transcript.txt?${q}`;
+    });
+  </script>
+</body>
+</html>
